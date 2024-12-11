@@ -12,9 +12,7 @@
 在 Value 输入框中，填写包含 SSH 连接信息的 JSON 字符串。
 
 [
-  {"hostname": "服务器号", "username": "用户名", "password": "密码"},
-  {"hostname": "s5.serv00.com", "username": "user", "password": "password"},
-  {"hostname": "s6.serv00.com", "username": "user6", "password": "password6"}
+  {"hostname": "s5.serv00.com", "username": "user", "password": "password"}
 ]
 
 添加 Telegram Bot Token
