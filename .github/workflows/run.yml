@@ -1,0 +1,35 @@
+name: SSH Login
+
+on:
+  schedule:
+    - cron: '0 11 5 * *'  # 每月的 5号 北京时间 19 点运行
+  workflow_dispatch:
+
+jobs:
+  ssh-login:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install paramiko requests
+      
+      - name: Run Python script
+        env:
+          SSH_INFO: ${{ secrets.SSH_INFO }}
+          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
+          MAIL: ${{ secrets.MAIL }}
+          PUSH: ${{ secrets.PUSH }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          
+        run: python run.py
