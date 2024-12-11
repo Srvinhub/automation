@@ -5,33 +5,32 @@ import json
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 
-# 加载环境变量
+# 加载 .env 文件中的环境变量（如果存在）
 load_dotenv()
 
 # 获取环境变量
-SSH_INFO = os.getenv('SSH_INFO', '[]')
-PUSH = os.getenv('PUSH', '')
-TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
-MAIL = os.getenv('MAIL')
+ssh_info_str = os.getenv('SSH_INFO', '[]')  # 默认值为空列表
+push_method = os.getenv('PUSH', '').lower()  # 推送方式
+telegram_bot_token = os.getenv('TELEGRAM_BOT_TOKEN', '')
+telegram_chat_id = os.getenv('TELEGRAM_CHAT_ID', '')
+mail = os.getenv('MAIL', '')
 
-# 获取当前时间（北京时间）
-def get_beijing_time():
-    beijing_timezone = timezone(timedelta(hours=8))
-    return datetime.now(beijing_timezone).strftime('%Y-%m-%d %H:%M:%S')
-
-# 批量 SSH 登录并执行命令
+# SSH 多连接函数
 def ssh_multiple_connections(hosts_info, command):
     users = []
     hostnames = []
     for host_info in hosts_info:
-        hostname = host_info['hostname']
-        username = host_info['username']
-        password = host_info['password']
+        hostname = host_info.get('hostname')
+        username = host_info.get('username')
+        password = host_info.get('password')
+
         try:
+            # 配置并建立 SSH 连接
             ssh = paramiko.SSHClient()
             ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             ssh.connect(hostname=hostname, port=22, username=username, password=password)
+
+            # 执行命令
             stdin, stdout, stderr = ssh.exec_command(command)
             user = stdout.read().decode().strip()
             users.append(user)
@@ -41,82 +40,82 @@ def ssh_multiple_connections(hosts_info, command):
             print(f"用户：{username}，连接 {hostname} 时出错: {str(e)}")
     return users, hostnames
 
-# 获取当前公共 IP
-def get_public_ip():
-    try:
-        response = requests.get('https://api.ipify.org?format=json', timeout=5)
-        response.raise_for_status()
-        return response.json().get('ip', '未知')
-    except requests.RequestException as e:
-        print(f"获取公共 IP 失败: {e}")
-        return "未知"
+# 解析 SSH 信息
+try:
+    hosts_info = json.loads(ssh_info_str)
+except json.JSONDecodeError:
+    print("SSH_INFO 格式错误，请检查 JSON 配置")
+    hosts_info = []
 
-# 邮件推送
-def mail_push(url, content):
-    if not MAIL:
-        print("邮件地址未配置，无法发送邮件")
+# 执行 SSH 命令
+command = 'whoami'
+user_list, hostname_list = ssh_multiple_connections(hosts_info, command)
+
+# 整理消息内容
+user_num = len(user_list)
+content = "SSH服务器登录信息：\n"
+for user, hostname in zip(user_list, hostname_list):
+    content += f"用户名：{user}，服务器：{hostname}\n"
+
+# 获取时间和 IP 信息
+beijing_timezone = timezone(timedelta(hours=8))
+current_time = datetime.now(beijing_timezone).strftime('%Y-%m-%d %H:%M:%S')
+
+try:
+    login_ip = requests.get('https://api.ipify.org?format=json', timeout=5).json().get('ip', '未知')
+except requests.RequestException:
+    login_ip = "无法获取"
+
+content += f"本次登录用户共： {user_num} 个\n登录时间：{current_time}\n登录IP：{login_ip}"
+
+# 推送邮件通知
+def mail_push():
+    if not mail:
+        print("未配置接收邮件地址，跳过邮件推送")
         return
+
+    url = "https://your-mail-api.example.com/send"  # 替换为实际邮件 API
     data = {
         "body": content,
-        "email": MAIL
+        "email": mail
     }
+
     try:
         response = requests.post(url, json=data, timeout=10)
         response_data = response.json()
         if response_data.get('code') == 200:
             print("邮件推送成功")
         else:
-            print(f"邮件推送失败，错误代码：{response_data.get('code')}")
-    except (requests.RequestException, json.JSONDecodeError) as e:
-        print(f"邮件推送失败: {e}")
+            print(f"邮件推送失败，错误代码：{response_data.get('code', '未知')}")
+    except Exception as e:
+        print(f"邮件推送失败: {str(e)}")
 
-# Telegram 推送
-def telegram_push(message):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print("Telegram 推送信息未配置")
+# 推送 Telegram 通知
+def telegram_push():
+    if not telegram_bot_token or not telegram_chat_id:
+        print("未配置 Telegram Bot Token 或 Chat ID，跳过 Telegram 推送")
         return
-    url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
+
+    url = f"https://api.telegram.org/bot{telegram_bot_token}/sendMessage"
     payload = {
-        'chat_id': TELEGRAM_CHAT_ID,
-        'text': message,
+        'chat_id': telegram_chat_id,
+        'text': content,
         'parse_mode': 'HTML'
     }
+
     try:
         response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status()
-        print("Telegram 推送成功")
-    except requests.RequestException as e:
-        print(f"Telegram 推送失败: {e}")
+        if response.status_code == 200:
+            print("Telegram 推送成功")
+        else:
+            print(f"Telegram 推送失败: {response.text}")
+    except Exception as e:
+        print(f"Telegram 推送失败: {str(e)}")
 
-# 主逻辑
-def main():
-    # 解析 SSH 信息
-    try:
-        hosts_info = json.loads(SSH_INFO)
-    except json.JSONDecodeError:
-        print("SSH_INFO 格式错误，请检查环境变量")
-        return
-
-    # 执行 SSH 命令
-    command = 'whoami'
-    user_list, hostname_list = ssh_multiple_connections(hosts_info, command)
-    user_num = len(user_list)
-
-    # 生成推送内容
-    content = "SSH服务器登录信息：\n"
-    for user, hostname in zip(user_list, hostname_list):
-        content += f"用户名：{user}，服务器：{hostname}\n"
-    content += f"本次登录用户共： {user_num} 个\n"
-    content += f"登录时间：{get_beijing_time()}\n"
-    content += f"登录IP：{get_public_ip()}"
-
-    # 推送消息
-    if PUSH == "mail":
-        mail_push('https://your-mail-api-url.com', content)
-    elif PUSH == "telegram":
-        telegram_push(content)
-    else:
-        print("推送失败，PUSH 参数设置错误")
-
-if __name__ == "__main__":
-    main()
+# 推送逻辑
+if push_method == "mail":
+    mail_push()
+elif push_method == "telegram":
+    telegram_push()
+else:
+    print("推送失败，请检查 PUSH 环境变量是否正确设置")
