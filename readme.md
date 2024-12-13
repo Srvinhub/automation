@@ -15,8 +15,8 @@
 
 | Secret 名称            | 描述                                    | 示例                                   |
 |-------------------------|-----------------------------------------|----------------------------------------|
-| `SSH_INFO`             | 包含 SSH 连接信息的 JSON 字符串        | `[ {"hostname": "s5.serv00.com", "username": "user", "password": "password"} ]` |
-| `TELEGRAM_BOT_TOKEN`   | 您的 Telegram Bot API Token            | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11` |
+| `SSH_INFO`             | 包含 SSH 连接信息的 JSON 字符串        | `[ {"hostname": "s10.serv00.com", "username": "user", "password": "password"} ]` |
+| `TELEGRAM_BOT_TOKEN`   | 您的 Telegram Bot API Token            | `123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew00` |
 | `TELEGRAM_CHAT_ID`     | 您的 Telegram Chat ID                  | `123456789`                            |
 | `PUSH`                 | 推送渠道，支持 `mail` 或 `telegram`    | `mail`                                 |
 | `MAIL`                 | 接收通知的邮箱地址（仅适用于 `mail`） | `example@mail.com`                     |
