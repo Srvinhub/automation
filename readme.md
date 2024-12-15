@@ -45,7 +45,7 @@
 您可以根据需求调整运行时间，修改工作流文件中的 `cron` 表达式。例如：
 ```yaml
 schedule:
-  - cron: '0 16 * * 0'  # 每周一 北京时间 0 点运行
+  - cron: '0 0 * * 1'  # 每周一 北京时间 0 点运行
 ```
 
 更多 `cron` 表达式配置指南，请参考 [GitHub Actions 官方文档](https://docs.github.com/en/actions/learn-github-actions/events-that-trigger-workflows#schedule)。
